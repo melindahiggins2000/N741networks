@@ -1,0 +1,378 @@
+---
+title: "N741 Demo of igraph and qgraph packages"
+author: "Melinda K. Higgins, PhD."
+date: "April 12, 2017"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(message = FALSE)
+knitr::opts_chunk$set(warning = FALSE)
+#library(igraph)
+#library(qgraph)
+```
+
+## `igraph` package exercise
+
+_These notes were adapted from the course, BIOS560R: "Statistical Methods for Network Science Lab"_
+
+Today we will explore the use of the R package `igraph`, also useful for exploring networks. So, please install the `igraph` package and load it using the `library()` statement.
+
+```{r}
+library(igraph)
+```
+
+Do the following to create an edgelist.
+
+```{r}
+datafab <- data.frame(c("Alice","Alice","Bob","Bob",
+                        "Sue","Jim","Jim","Jim",
+                        "Ellen","Frank"), 
+                      c("Bob","Sue","Jim","Sue","Ellen",
+                        "Frank","Ellen","Karen",
+                        "Frank","Karen"))
+names(datafab) <- c("person1","person2")
+```
+
+You can then turn the data.frame into an `igraph` graph by running the `graph.data.frame()` command:
+
+```{r}
+g <- graph.data.frame(datafab, directed=FALSE)
+g
+```
+
+Or you can find out about the graph with the `summary()` command.
+
+```{r}
+summary(g)
+```
+
+You can list the vertices and edges of the graph with the `V()` and `E()` commands:
+
+```{r}
+V(g)
+E(g)
+```
+
+There should be 7 vertices and 10 edges. 
+
+** Remember to check your work **
+
+Another way to create a graph is to import the necessary information from files in which are saved characteristics such as edge attributes, vertex attributes, and the edges between vertices. 
+
+For the next exercise, we will work with the "traits.csv" data file, which has 10 rows (10 people), and 3 columns where:
+
+* column 1 - names of the people
+* column 2 - ages of the people
+* column 3 - gender of the people
+
+First start with an empty graph:
+
+```{r}
+g<- graph.empty()
+```
+
+Next we add vertices, as well as their attributes. This information is stored in the comma separated value format (CSV) file "traits.csv". There is another .csv file named “relations.csv” which will define the edges. The "relations.csv" file has 34 rows and 5 columns:
+
+* column 1 - person 1
+* column 2 - person 2
+* column 3 - room
+* column 4 - friend
+* column 5 - advice
+
+NOTE: Neither file has a header row.
+
+Let’s read both files in:
+
+```{r}
+traits <- read.csv("traits.csv", head=FALSE)
+rel<-read.csv("relations.csv", head=FALSE)
+```
+
+The head parameter is set to FALSE, instructing R not to interpret the first line of the file as a header. Set this to TRUE if you have a header with column names in your file.
+
+Now, let’s add vertices (from the "traits.csv" data file) to the empty graph as follows:
+
+```{r}
+g <- add.vertices(g, nv=nrow(traits),
+                  name = as.character(traits[,1]),
+                  age = traits[,2],
+                  gender = as.character(traits[,3]))
+```
+
+Check that the graph is created properly:
+
+```{r}
+V(g)$name
+V(g)$age
+V(g)$gender
+```
+
+You can open up the .csv files with Excel, and you will notice that the traits are identified with first and last names, while the relations are identified with the first names only. Let’s strip the last names:
+
+```{r}
+names <- sapply(strsplit(V(g)$name, " "), "[", 1)
+
+# NOTE: the edges as done above will throw and error
+# now the ids need to start at 1
+# see stackoverflow note at
+# http://stackoverflow.com/questions/20730295/error-reading-dataset-in-r
+#
+# previous code
+# ids <- 1:length(names)-1
+#
+# fix - don't subtract 1 anymore
+ids <- 1:length(names)
+
+names(ids) <- names
+```
+
+* List the ids.
+
+```{r}
+ids
+```
+
+Next create an edge list with vertex ids instead of symbolic names:
+
+```{r}
+from <- as.character(rel[,1])
+to <- as.character(rel[,2])
+edges <- matrix(c(ids[from], ids[to]), nc=2)
+```
+
+* List the edges. How many are there?
+
+```{r}
+edges
+```
+
+Finally we can add the edges to the graph, along with the edge attributes (room, friend and advice):
+
+```{r}
+# quick demo from help
+#el <- matrix( c("foo", "bar", "bar", "foobar", "foo", "bar2"), 
+#              nc = 2, byrow = TRUE)
+#graph_from_edgelist(el)
+
+graph_from_edgelist(edges)
+
+g <- add.edges(g, t(edges), 
+               room = as.character(rel[,3]),
+               friend = rel[,4], 
+               advice = rel[,5])
+```
+
+* List the graph. Summarize it.
+
+```{r}
+g
+summary(g)
+V(g)
+E(g)
+```
+
+## Importing Graphs
+
+There is no special file format for importing and storing graphs in `igraph` nor in `R`. There are, however, several different methods for importing them. One should be aware that the `igraph` builders recommend using a simple edge list format for larger graphs. In general the most computational efficiency is gained by using edgelists (over adjacency matrices). 
+
+### Formats
+
+** Edgelist Format **
+
+The simplest format is the edge list format. In this format, each row of a text file comprises the IDs that denote the two ends of an edge, separated by a blank. It can be read using the `read.graph` function, setting the format to “edgelist” as follows.
+
+* Read in the edges stored in the file `dolphin.txt`, which is a "space-delimited" file with 2 columns of numbers and 159 rows.
+
+```{r}
+# this initally had errors
+# I had to recreate the text file
+read.graph("dolphin.txt", format="edgelist")
+
+# this works
+#g2 <- make_ring(10)
+#write_graph(g2, "g2.txt", "edgelist")
+#rg2 <- read.graph("g2.txt", format="edgelist")
+
+write_graph(g2, "g4pj.txt", "pajek")
+```
+
+Note that the default is that the graph is imported with directed edges. List the edges in the graph. Alternatively you can import the file with undirected edges by adding the option directed = “FALSE” to the read.graph command. Repeat the import of the dolphins data, and list the edges again. 
+
+```{r}
+read.graph("dolphin.txt", format="edgelist", directed = FALSE)
+```
+
+* Can you tell the difference between how the edges are listed for directed versus undirected graphs?
+
+** Pajek Format **
+
+Pajek is a popular network analysis program for Windows. To read in such a dataset, change the format type to "pajek"" in the `read.graph` command. 
+
+* Do this for the karate club dataset, stored as "karate.txt". Note that it is not necessary to tell read.graph if the relationships are directional of not, that is part of the pajek file.
+
+```{r}
+read.graph("karate.txt", format="pajek")
+```
+
+** GML Format **
+
+Another format is GML, standing for (in some circles) graph markup language, and (in other circles) geographic markup language. Again, change the format type to "gml"" in the `read.graph` command. 
+
+* Do this for the "football"" dataset
+
+```{r}
+read.graph("football.gml", format="gml")
+```
+
+## Plotting graphs in `igraph`
+
+There are two ways to plot graphs.
+
+`plot.igraph(name of igraph object here)`
+
+will give you a static plot, while 
+
+`tkplot(name of igraph object here)`
+
+will give you more interactive capability, although I have not tested that. Try these for the graph g that you created from reading in the .csv files above. 
+
+```{r}
+plot.igraph(g)
+tkplot(g)
+```
+
+* What are the differences between the two plots? 
+
+_(NB, I had good luck when I issued the tkplot command as follows, changing the edge colors)_
+
+```{r}
+E(g)$color <- "black"
+E(g)[ room=="Y" ]$color <- "red"
+tkplot(g, layout=layout.kamada.kawai, 
+       edge.color=E(g)$color) 
+```
+
+## Graph and Vertex Properties
+
+You can determine the degree sequence of a graph as follows:
+
+>degree(graph name here)
+
+Likewise the diameter of a graph:
+
+>diameter(graph name here)
+
+One can calculate closeness centrality with the closeness command as follows:
+
+>closeness(graph name here)
+
+or estimate it with 
+
+>closeness.estimate(graph name here)
+
+For directed graphs, you can use the mode option here to determine the in-, out-, or all closeness, as follows:
+
+>closeness(g, mode=”in”)
+>closeness(g, mode=”out”)
+>closeness(g, mode=”all”)
+>closeness(g, mode=c(“in”, “out”, “all”)
+
+Similarly one can calculate betweenness centrality with the betweenness command as follows:
+
+>betweenness(graph name here)
+
+or estimate it with 
+
+>betweenness.estimate(graph name here)
+
+Another important option for this command is “directed=TRUE” to use when consideration of direction in digraphs is important.
+
+*Calculate the degree sequence, average degree, diameter, betweenness centrality and closeness centrality of the social relationship graph that we created as well as for the dolphins and football networks.
+
+ 
+
+*To turn in: 
+
+
+LAB 1
+Due 29 October 2014 5:00 pm ET
+
+In the class folder there is the dataset adjnoun.gml, which describes the word concurrencies in David Copperfield. For this graph, provide a 1-2 page description of it. For each one, give its basic characteristics in tabular format: number of vertices, number of edges, list any attributes of vertices and attributes if known (NB, direction is an attribute), give the graph and vertex properties listed above (including average degree). Include a plot.
+
+Please remember to include your name on the first page of the document.
+
+
+
+
+
+
+
+```{r}
+# load the built in iris dataset
+# which has 4 measurements on 150 flowers
+# 50 flowers each from 3 species of irises
+data(iris)
+dim(iris)
+names(iris)
+
+# flip 150 cases by 4 variables
+# to 4 by 150, use the t() function
+# to transpose the matrix
+# compute correlations between cases
+# instead of between variables
+
+flipiris <- t(iris[,1:4])
+dim(flipiris)
+
+coriris <- cor(flipiris, method="pearson")
+#diag(coriris) <- 0
+
+data_list <- list(seq(1,150,1))
+
+qgraph(coriris, 
+       groups=data_list, 
+       minimum=0.7, vsize=3,
+       labels=TRUE,
+       title="Network Graph of Associations Between 150 flowers in IRIS dataset")
+
+M1 <- coriris
+M2 <- M1
+M2[abs(M1)<0.9] <- 0
+
+g <- graph.adjacency(M2, mode="undirected", 
+                     weighted=TRUE,
+                     diag=FALSE)
+
+plot(g, 
+     edge.width=E(g)$weight,
+     edge.color=((E(g)$weight<0)+5),
+     vertex.size=8)
+
+
+
+```
+
+
+
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r cars}
+summary(cars)
+```
+
+## Including Plots
+
+You can also embed plots, for example:
+
+```{r pressure, echo=FALSE}
+plot(pressure)
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
